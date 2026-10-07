@@ -2,90 +2,85 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import useLocalStorage from "../hooks/useLocalStorage";
 import TreeForm from "../components/TreeForm";
 
+// SSR disable karne ke liye Map ko dynamically import kiya hai
 const Map = dynamic(() => import("../components/Map"), {
   ssr: false,
 });
 
 export default function Home() {
-  const { trees, addTree, loading } = useLocalStorage();
+  // Simple React state: Page reload karne par yeh reset ho kar [] ho jayegi
+  const [trees, setTrees] = useState([]);
   const [location, setLocation] = useState(null);
   const [formData, setFormData] = useState({
     userName: "",
     treeName: "",
   });
-  const [submitting, setSubmitting] = useState(false);
 
+  // Map par click karne par location capture karna
   const handleMapClick = (latlng) => {
     setLocation(latlng);
   };
 
-  const handleSaveTree = async () => {
+  // Naya tree plant karna (sirf current session ke liye)
+  const handleSaveTree = () => {
     if (!location) {
-      alert("Pehle map par kisi jagah click karein!");
+      alert("Map par click karke location select karein!");
       return;
     }
 
-    try {
-      setSubmitting(true);
-      const newTree = {
-        userName: formData.userName,
-        treeName: formData.treeName,
-        lat: Number(location.lat),
-        lng: Number(location.lng),
-        date: new Date().toLocaleDateString(),
-      };
+    const newTree = {
+      id: Date.now(),
+      userName: formData.userName,
+      treeName: formData.treeName,
+      lat: Number(location.lat),
+      lng: Number(location.lng),
+      date: new Date().toLocaleDateString(),
+    };
 
-      // Realtime Database me save karein
-      await addTree(newTree);
+    // State update: naya tree add karein
+    setTrees((prevTrees) => [...prevTrees, newTree]);
 
-      // Reset Form
-      setFormData({
-        userName: "",
-        treeName: "",
-      });
-      setLocation(null);
-      alert("✅ Tree successfully planted!");
-    } catch (error) {
-      console.error("Firebase error:", error);
-      alert("Error saving tree: " + error.message);
-    } finally {
-      setSubmitting(false);
-    }
+    // Form aur selected location reset
+    setFormData({
+      userName: "",
+      treeName: "",
+    });
+    setLocation(null);
   };
 
   return (
     <main className="min-h-screen bg-gray-100 p-6">
       <div className="mx-auto max-w-7xl">
         <h1 className="mb-2 text-3xl font-bold text-green-700">
-          🌳 Tree Planting Application (Live)
+          🌳 Tree Planting Application
         </h1>
         <p className="mb-6 text-gray-600">
           Click on the map, select a location and plant your tree.
         </p>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          {/* Map */}
+          {/* Map Section */}
           <div className="lg:col-span-2">
             <Map trees={trees} onMapClick={handleMapClick} />
           </div>
 
-          {/* Form & Stats */}
+          {/* Form & Counter Section */}
           <div>
             <TreeForm
               location={location}
               formData={formData}
               setFormData={setFormData}
               onSave={handleSaveTree}
-              submitting={submitting}
             />
 
             <div className="mt-4 rounded-lg bg-white p-4 shadow-sm">
-              <h2 className="font-semibold text-gray-700">Total Trees Planted</h2>
+              <h2 className="font-semibold text-gray-700">
+                Trees Planted (This Session)
+              </h2>
               <p className="mt-1 text-3xl font-bold text-green-600">
-                {loading ? "Loading..." : trees.length}
+                {trees.length}
               </p>
             </div>
           </div>
